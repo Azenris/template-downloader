@@ -200,13 +200,13 @@ static bool make_directory( const char *directory )
 
 static bool extract_all_files( zip_t *zip, const char *path, char *rootFolder, u64 maxRootFolder )
 {
+	if ( !make_directory( path ) )
+		return false;
+
 	struct zip_stat st;
 	char prePath[ MAX_FILEPATH ];
 	char filePath[ MAX_FILEPATH ];
 	char buf[ 1024 ];
-
-	if ( !make_directory( path ) )
-		return false;
 
 	i32 err = zip_stat_index( zip, 0, 0, &st );
 	if ( err != 0 )
@@ -217,15 +217,11 @@ static bool extract_all_files( zip_t *zip, const char *path, char *rootFolder, u
 
 	if ( st.name[ strlen( st.name ) - 1 ] == '/' )
 	{
-		string_utf8_copy( rootFolder, maxRootFolder, st.name );
+		string_utf8_copy( rootFolder, maxRootFolder, path );
+		string_utf8_append( rootFolder, maxRootFolder, st.name );
 	}
 
 	string_utf8_copy( prePath, path );
-	char last = prePath[ string_utf8_bytes( prePath ) - 1 ];
-	if ( last != '\\' && last != '/' )
-	{
-		string_utf8_append( prePath, "/" );
-	}
 
 	for ( zip_int64_t i = 0, fileCount = zip_get_num_entries( zip, 0 ); i < fileCount; ++i )
 	{
@@ -363,6 +359,11 @@ int main( int argc, const char *argv[] )
 		if ( index >= argc )
 			return false;
 		string_utf8_copy( options.destFolder, argv[ ++index ] );
+		char last = options.destFolder[ string_utf8_bytes( options.destFolder ) - 1 ];
+		if ( last != '\\' && last != '/' )
+		{
+			string_utf8_append( options.destFolder, "/" );
+		}
 		return true;
 	} );
 
@@ -504,7 +505,12 @@ int main( int argc, const char *argv[] )
 	// Setup
 	// ----------------------------------------
 
-	rename( options.rootFolder, options.projectName );
+	char finalProjectFile[ MAX_FILEPATH ];
+	string_utf8_copy( finalProjectFile, options.destFolder );
+	string_utf8_append( finalProjectFile, options.projectName );
+	log( "Renaming %s to %s", options.rootFolder, finalProjectFile );
+
+	rename( options.rootFolder, finalProjectFile );
 
 	log( "Setup Complete." );
 
