@@ -39,6 +39,8 @@ enum RESULT_CODE
 	RESULT_CODE_INSUFFICIENT_ARGUMENTS,
 	RESULT_CODE_FAILED_TO_PARSE_ARGUMENTS,
 	RESULT_CODE_UNKNOWN_ARGUMENT_COMMAND,
+	RESULT_CODE_MISSING_PROJECT_NAME,
+	RESULT_CODE_MISSING_SOURCE_REPO,
 	RESULT_CODE_CURL_FAILED_INIT,
 	RESULT_CODE_FAILED_TO_OPEN_FILE,
 	RESULT_CODE_FAILED_TO_RETRIEVE_DATA,
@@ -54,6 +56,8 @@ static constexpr const char *RESULT_CODE_NAME[] =
 	"RESULT_CODE_INSUFFICIENT_ARGUMENTS",
 	"RESULT_CODE_FAILED_TO_PARSE_ARGUMENTS",
 	"RESULT_CODE_UNKNOWN_ARGUMENT_COMMAND",
+	"RESULT_CODE_MISSING_PROJECT_NAME",
+	"RESULT_CODE_MISSING_SOURCE_REPO",
 	"RESULT_CODE_CURL_FAILED_INIT",
 	"RESULT_CODE_FAILED_TO_OPEN_FILE",
 	"RESULT_CODE_FAILED_TO_RETRIEVE_DATA",
@@ -68,12 +72,14 @@ constexpr const char *TEMP_ARCHIVE_FILE = "file.zip";
 struct Options
 {
 	bool verbose = false;
-	char destFolder[ MAX_FILEPATH ] = "\0";
-	char sourceRepo[ MAX_FILEPATH ] = "\0";
+	char destFolder[ MAX_FILEPATH ] = ".";
+	char projectName[ MAX_FILEPATH ] = "";
+	char sourceRepo[ MAX_FILEPATH ] = "";
+	char rootFolder[ MAX_FILEPATH ] = "";
 	i32 attempts = 6;
-	u64 permanentSize = MB( 1 );
-	u64 transientSize = MB( 2 );
-	u64 fastBumpSize = MB( 1 );
+	u64 permanentSize = 0;
+	u64 transientSize = KB( 2 );
+	u64 fastBumpSize = 0;
 
 } options;
 
@@ -90,13 +96,14 @@ static i32 usage( i32 error )
 	printf( "---------------------------------------------------------------------------------------------------------" );
 	printf( "  Usage." );
 	printf( "---------------------------------------------------------------------------------------------------------" );
-	printf( "  template-downloader -o <dest-folder> -s <source-github>" );
+	printf( "  template-downloader -p <name> -o <dest-folder> -s <source-github>" );
 	printf( "  EG." );
-	printf( "  template-downloader -o . -s Azenris/game-template" );
-	printf( "  template-downloader -o C:/projects/my_new_project -s Azenris/game-template" );
+	printf( "  template-downloader -p ld99 -s Azenris/game-template" );
+	printf( "  template-downloader -p ld99 -o C:/projects/my_new_project -s Azenris/game-template" );
 	printf( "---------------------------------------------------------------------------------------------------------" );
 	printf( "  Options:" );
-	printf( "    -o                = Output Folder (required)" );
+	printf( "    -p                = Project Name (required)" );
+	printf( "    -o                = Destination Folder (default .)" );
 	printf( "    -s                = Github Source (required)" );
 	printf( "    -v                = Verbose Output" );
 	printf( "    -attempts <num>   = Number of attempts to download archive. (default 6)" );
@@ -132,22 +139,105 @@ static u64 write_data( void *data, u64 size, u64 nmemb, void *stream )
 	return written;
 }
 
-static bool extract_all_files( zip_t *zip, const char *path )
+static bool make_directory( const char *directory )
+{
+	char pathMem[ MAX_FILEPATH ];
+	if ( string_utf8_copy( pathMem, directory ) == 0 )
+		return false;
+
+	char *path = pathMem;
+	const char *token;
+	const char *delimiters = "./\\";
+	char delim;
+	char dir[ MAX_FILEPATH ] = "\0";
+
+	if ( *path == '.' )
+	{
+		path += 1;
+
+		if ( *path == '/' || *path == '\\' )
+		{
+			// ./ (current directory)
+			string_utf8_append( dir, "./" );
+		}
+		else if ( *path == '.' )
+		{
+			path += 1;
+
+			// ../ (moving up from current directory)
+			if ( *path == '/' || *path == '\\' )
+			{
+				// ./ (current directory)
+				string_utf8_append( dir, "../" );
+			}
+		}
+	}
+
+	path = string_utf8_tokenise( path, delimiters, &token, &delim );
+
+	while ( token )
+	{
+		if ( delim == '.' )
+		{
+			// file ext
+			return true;
+		}
+
+		string_utf8_append( dir, token );
+		string_utf8_append( dir, "/" );
+
+		#ifdef PLATFORM_WINDOWS
+			_mkdir( dir );
+		#else
+			mkdir( dir, 0777 );
+		#endif
+
+		path = string_utf8_tokenise( path, delimiters, &token, &delim );
+	}
+
+	return true;
+}
+
+static bool extract_all_files( zip_t *zip, const char *path, char *rootFolder, u64 maxRootFolder )
 {
 	struct zip_stat st;
-	char filePath[ 4096 ];
+	char prePath[ MAX_FILEPATH ];
+	char filePath[ MAX_FILEPATH ];
 	char buf[ 1024 ];
+
+	if ( !make_directory( path ) )
+		return false;
+
+	i32 err = zip_stat_index( zip, 0, 0, &st );
+	if ( err != 0 )
+	{
+		log_error( "Error getting file stat." );
+		return false;
+	}
+
+	if ( st.name[ strlen( st.name ) - 1 ] == '/' )
+	{
+		string_utf8_copy( rootFolder, maxRootFolder, st.name );
+	}
+
+	string_utf8_copy( prePath, path );
+	char last = prePath[ string_utf8_bytes( prePath ) - 1 ];
+	if ( last != '\\' && last != '/' )
+	{
+		string_utf8_append( prePath, "/" );
+	}
 
 	for ( zip_int64_t i = 0, fileCount = zip_get_num_entries( zip, 0 ); i < fileCount; ++i )
 	{
-		i32 err = zip_stat_index( zip, i, 0, &st );
+		err = zip_stat_index( zip, i, 0, &st );
 		if ( err != 0 )
 		{
 			log_error( "Error getting file stat." );
 			return false;
 		}
 
-		snprintf( filePath, sizeof( filePath ), "%s/%s", path, st.name );
+		string_utf8_copy( filePath, prePath );
+		string_utf8_append( filePath, st.name );
 
 		if ( st.name[ strlen( st.name ) - 1 ] != '/' )
 		{
@@ -181,11 +271,8 @@ static bool extract_all_files( zip_t *zip, const char *path )
 		else
 		{
 			// Folder
-			#ifdef PLATFORM_WINDOWS
-				_mkdir( filePath );
-			#else
-				mkdir( filePath, 0777 );
-			#endif
+			if ( !make_directory( filePath ) )
+				return false;
 		}
 	}
 
@@ -261,6 +348,15 @@ int main( int argc, const char *argv[] )
 		return true;
 	} );
 
+	// Set the project name
+	commands.insert( "-p", []( i32 &index, int argc, const char *argv[] )
+	{
+		if ( index >= argc )
+			return false;
+		string_utf8_copy( options.projectName, argv[ ++index ] );
+		return true;
+	} );
+
 	// Set the output folder
 	commands.insert( "-o", []( i32 &index, int argc, const char *argv[] )
 	{
@@ -275,7 +371,9 @@ int main( int argc, const char *argv[] )
 	{
 		if ( index >= argc )
 			return false;
-		string_utf8_copy( options.sourceRepo, argv[ ++index ] );
+		string_utf8_copy( options.sourceRepo, "https://github.com/" );
+		string_utf8_append( options.sourceRepo, argv[ ++index ] );
+		string_utf8_append( options.sourceRepo, "/archive/master.zip" );
 		return true;
 	} );
 
@@ -306,11 +404,22 @@ int main( int argc, const char *argv[] )
 		else
 		{
 			printf( "Unknown argument command: %s", argv[ i ] );
-			return RESULT_CODE_UNKNOWN_ARGUMENT_COMMAND;
+			return usage( RESULT_CODE_UNKNOWN_ARGUMENT_COMMAND );
 		}
 	}
 
+	if ( options.projectName[ 0 ] == '\0' )
+	{
+		return usage( RESULT_CODE_MISSING_PROJECT_NAME );
+	}
+
+	if ( options.sourceRepo[ 0 ] == '\0' )
+	{
+		return usage( RESULT_CODE_MISSING_SOURCE_REPO );
+	}
+
 	log( "Running template-downloader" );
+	log( "Project: %s", options.projectName );
 	log( "Destination: %s", options.destFolder );
 	log( "Github Source: %s", options.sourceRepo );
 
@@ -339,7 +448,7 @@ int main( int argc, const char *argv[] )
 			return usage( RESULT_CODE_FAILED_TO_OPEN_FILE );
 		}
 
-		curl_easy_setopt( handle, CURLOPT_URL, "https://github.com/Azenris/timer/archive/master.zip" );
+		curl_easy_setopt( handle, CURLOPT_URL, options.sourceRepo );
 		curl_easy_setopt( handle, CURLOPT_VERBOSE, 0 );
 		curl_easy_setopt( handle, CURLOPT_FOLLOWLOCATION, 1 );
 		curl_easy_setopt( handle, CURLOPT_WRITEFUNCTION, write_data );
@@ -367,7 +476,7 @@ int main( int argc, const char *argv[] )
 	// Unzip the archive
 	// ----------------------------------------
 	i32 err = 0;
-	zip *z = zip_open( TEMP_ARCHIVE_FILE, ZIP_RDONLY, &err );
+	zip *z = zip_open( TEMP_ARCHIVE_FILE, 0, &err );
 
 	if ( !z )
 	{
@@ -379,7 +488,7 @@ int main( int argc, const char *argv[] )
 		return usage( RESULT_CODE_FAILED_TO_OPEN_ARCHIVE );
 	}
 
-	if ( !extract_all_files( z, "." ) )
+	if ( !extract_all_files( z, options.destFolder, options.rootFolder, sizeof( options.rootFolder ) ) )
 	{
 		log_error( "Error unzipping archive." );
 		return usage( RESULT_CODE_FAILED_TO_UNZIP_ARCHIVE );
@@ -394,7 +503,8 @@ int main( int argc, const char *argv[] )
 	// ----------------------------------------
 	// Setup
 	// ----------------------------------------
-	
+
+	rename( options.rootFolder, options.projectName );
 
 	log( "Setup Complete." );
 

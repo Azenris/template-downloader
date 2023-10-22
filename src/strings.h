@@ -242,7 +242,7 @@ void string_utf8_trim_ext( char *str );
 
 [[nodiscard]] char *string_utf8_filename( char *str );
 
-[[nodiscard]] const char *string_utf8_copy_path( char *dest, u64 destSize, const char *str );
+const char *string_utf8_copy_path( char *dest, u64 destSize, const char *str );
 
 [[nodiscard]] inline const char *string_utf8_get_path( const char *str, Allocator *allocator )
 {
@@ -915,7 +915,7 @@ void string_utf8_trim_ext( char *str )
 	return p;
 }
 
-[[nodiscard]] const char *string_utf8_copy_path( char *dest, u64 destSize, const char *str )
+const char *string_utf8_copy_path( char *dest, u64 destSize, const char *str )
 {
 	assert( dest && str );
 
