@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <assert.h>
+#include <math.h>
+#include <float.h>
 
 // Platform Specific Includes
 #ifdef PLATFORM_WINDOWS
@@ -16,16 +18,24 @@
 #include "curl/curl.h"
 #include "zip.h"
 
+// Remove Thirdparty/Platform Libs making min.max macros...
+#undef min
+#undef max
+
 // Includes
 #include "types.h"
+#include "memory_arena.h"
 #include "array.h"
+#include "strings.h"
 #include "map.h"
+#include "utility.h"
 
 // --------------------------------------------------------------------------------
 
 enum RESULT_CODE
 {
 	RESULT_CODE_SUCCESS,
+	RESULT_CODE_FAILED_TO_INITIALISE_MEMORY_ARENA,
 	RESULT_CODE_INSUFFICIENT_ARGUMENTS,
 	RESULT_CODE_FAILED_TO_PARSE_ARGUMENTS,
 	RESULT_CODE_UNKNOWN_ARGUMENT_COMMAND,
@@ -40,6 +50,7 @@ enum RESULT_CODE
 static constexpr const char *RESULT_CODE_NAME[] = 
 {
 	"RESULT_CODE_SUCCESS",
+	"RESULT_CODE_FAILED_TO_INITIALISE_MEMORY_ARENA",
 	"RESULT_CODE_INSUFFICIENT_ARGUMENTS",
 	"RESULT_CODE_FAILED_TO_PARSE_ARGUMENTS",
 	"RESULT_CODE_UNKNOWN_ARGUMENT_COMMAND",
@@ -59,8 +70,18 @@ struct Options
 	bool verbose = false;
 	char destFolder[ MAX_FILEPATH ] = "\0";
 	char sourceRepo[ MAX_FILEPATH ] = "\0";
+	i32 attempts = 6;
+	u64 permanentSize = MB( 1 );
+	u64 transientSize = MB( 2 );
+	u64 fastBumpSize = MB( 1 );
 
 } options;
+
+struct App
+{
+	MemoryArena memoryArena;
+
+} app;
 
 static i32 usage( i32 error )
 {
@@ -75,9 +96,10 @@ static i32 usage( i32 error )
 	printf( "  template-downloader -o C:/projects/my_new_project -s Azenris/game-template" );
 	printf( "---------------------------------------------------------------------------------------------------------" );
 	printf( "  Options:" );
-	printf( "    -o           = Output Folder" );
-	printf( "    -s           = Github Source" );
-	printf( "    -v           = Verbose Output" );
+	printf( "    -o                = Output Folder (required)" );
+	printf( "    -s                = Github Source (required)" );
+	printf( "    -v                = Verbose Output" );
+	printf( "    -attempts <num>   = Number of attempts to download archive. (default 6)" );
 	printf( "---------------------------------------------------------------------------------------------------------" );
 
 	return error;
@@ -180,6 +202,51 @@ int main( int argc, const char *argv[] )
 		return usage( RESULT_CODE_INSUFFICIENT_ARGUMENTS );
 	}
 
+	// Memory
+	app.memoryArena =
+	{
+		.flags = 0,
+		.memory = nullptr,
+		.permanent =
+		{
+			.capacity = 0,
+			.available = 0,
+			.memory = nullptr,
+			.lastAlloc = nullptr,
+			.allocate_func = memory_bump_allocate,
+			.reallocate_func = memory_bump_reallocate,
+			.shrink_func = memory_bump_shrink,
+			.free_func = memory_bump_free,
+			.attach_func = memory_bump_attach,
+		},
+		.transient =
+		{
+			.capacity = 0,
+			.available = 0,
+			.memory = nullptr,
+			.lastAlloc = nullptr,
+			.allocate_func = memory_bump_allocate,
+			.reallocate_func = memory_bump_reallocate,
+			.shrink_func = memory_bump_shrink,
+			.free_func = memory_bump_free,
+			.attach_func = memory_bump_attach,
+		},
+		.fastBump =
+		{
+			.capacity = 0,
+			.available = 0,
+			.memory = nullptr,
+			.lastAlloc = nullptr,
+			.allocate_func = memory_fast_bump_allocate,
+			.attach_func = nullptr,
+		},
+	};
+
+	if ( !app.memoryArena.init( options.permanentSize, options.transientSize, options.fastBumpSize, true ) )
+	{
+		return usage( RESULT_CODE_FAILED_TO_INITIALISE_MEMORY_ARENA );
+	}
+
 	// ----------------------------------------
 	// Arguments / Options
 	// ----------------------------------------
@@ -199,7 +266,7 @@ int main( int argc, const char *argv[] )
 	{
 		if ( index >= argc )
 			return false;
-		strcpy( options.destFolder, argv[ ++index ] );
+		string_utf8_copy( options.destFolder, argv[ ++index ] );
 		return true;
 	} );
 
@@ -208,7 +275,7 @@ int main( int argc, const char *argv[] )
 	{
 		if ( index >= argc )
 			return false;
-		strcpy( options.sourceRepo, argv[ ++index ] );
+		string_utf8_copy( options.sourceRepo, argv[ ++index ] );
 		return true;
 	} );
 
@@ -216,6 +283,13 @@ int main( int argc, const char *argv[] )
 	commands.insert( "-v", []( i32 &index, int argc, const char *argv[] )
 	{
 		options.verbose = true;
+		return true;
+	} );
+
+	// Set the number of attempts to download the archive
+	commands.insert( "-attempts", []( i32 &index, int argc, const char *argv[] )
+	{
+		options.attempts = convert_to_i32( argv[ ++index ] );
 		return true;
 	} );
 
@@ -252,7 +326,7 @@ int main( int argc, const char *argv[] )
 		return usage( RESULT_CODE_CURL_FAILED_INIT );
 	}
 
-	i32 dlAttempts = 6;
+	i32 dlAttempts = options.attempts;
 	CURLcode res;
 	char curlErrorString[ CURL_ERROR_SIZE ];
 
@@ -320,7 +394,7 @@ int main( int argc, const char *argv[] )
 	// ----------------------------------------
 	// Setup
 	// ----------------------------------------
-
+	
 
 	log( "Setup Complete." );
 
@@ -334,3 +408,7 @@ int main( int argc, const char *argv[] )
 
 	return RESULT_CODE_SUCCESS;
 }
+
+// --------------------------------------------------------------------------------
+// Unity build
+#include "utility.cpp"

@@ -158,7 +158,7 @@ struct MapKeyCompare<char *>
 {
 	static bool compare( const char *lhs, const char *rhs )
 	{
-		return strcmp( lhs, rhs ) == 0;
+		return string_utf8_compare( lhs, rhs );
 	}
 };
 
@@ -167,7 +167,7 @@ struct MapKeyCompare<const char *>
 {
 	static bool compare( const char *lhs, const char *rhs )
 	{
-		return strcmp( lhs, rhs ) == 0;
+		return string_utf8_compare( lhs, rhs );
 	}
 };
 
@@ -187,7 +187,7 @@ struct MapKeyAssignment<const char *>
 	template <u64 Size>
 	static void assign( char( &lhs )[ Size ], const char *rhs )
 	{
-		strcpy( lhs, Size, rhs );
+		string_utf8_copy( lhs, Size, rhs );
 	}
 
 	static void assign( const char *&lhs, const char *rhs )
