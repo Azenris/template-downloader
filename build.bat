@@ -17,8 +17,8 @@ SET name=template-downloader
 SET buildDir=TEMP\
 SET objectDir=%buildDir%Objects\
 SET warnings=-WX -W4 -wd4100 -wd4201 -wd4324
-SET includes=-Ithird_party\
-SET defines=-DC_PLUS_PLUS -D_CRT_SECURE_NO_WARNINGS -DLITTLE_ENDIAN -D%platform% -DPLATFORM_ENGINE="\"%platform%\"" -DCURL_STATICLIB
+SET includes=-Ithird_party\ -Ithird_party\libzip\
+SET defines=-DC_PLUS_PLUS -D_CRT_SECURE_NO_WARNINGS -DLITTLE_ENDIAN -D%platform% -DPLATFORM_ENGINE="\"%platform%\"" -DCURL_STATICLIB -DZIP_STATIC
 SET links=-link Normaliz.lib Ws2_32.lib Wldap32.lib Crypt32.lib advapi32.lib
 SET linker=-subsystem:console
 SET flags=-std:c++20 -Zc:preprocessor -Zc:strictStrings -GR- -EHsc
@@ -30,11 +30,17 @@ if %debugMode% == 1 (
 	SET warnings=%warnings% -wd4189
 	SET defines=%defines% -DDEBUG
 	SET includes=%includes% -Ithird_party\libcurl\debug\64\include\
-	SET links=%links% third_party\zlib\zlibd64.lib third_party\libcurl\debug\64\lib\libcurl_a_debug.lib
+	SET links=%links% ^
+		third_party\zlib\zlibd64.lib ^
+		third_party\libcurl\debug\64\lib\libcurl_a_debug.lib ^
+		third_party\libzip\debug\64\zip.lib
 	SET flags=%flags% -Z7 -FC -MDd
 ) else (
 	SET includes=%includes% -Ithird_party\libcurl\release\64\include\
-	SET links=%links% third_party\zlib\zlib64.lib third_party\libcurl\release\64\lib\libcurl_a.lib
+	SET links=%links% ^
+		third_party\zlib\zlib64.lib ^
+		third_party\libcurl\release\64\lib\libcurl_a.lib ^
+		third_party\libzip\release\64\zip.lib
 	SET flags=%flags% -MD -O2
 )
 
