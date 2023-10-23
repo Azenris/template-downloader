@@ -306,8 +306,6 @@ inline u64 string_utf8_append( char *destination, u64 destSize, const char *appe
 	return appendBytes - 1;
 }
 
-u64 string_utf8_insert( char *destination, u64 destSize, const char *insert, i32 index );
-
 /// @desc Returns a count of characters until a delimiter is found
 ///       While marked as utf8 the delimiter should be ASCII only
 [[nodiscard]] u64 string_utf8_string_span( const char *tok, const char *delim );

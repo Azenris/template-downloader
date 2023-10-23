@@ -41,7 +41,7 @@ struct Allocator
 	template <typename T> [[nodiscard]] inline T *allocate( u32 size, bool clearZero, u16 alignment );
 	template <typename T> [[nodiscard]] inline T *allocate( u64 size, bool clearZero );
 	template <typename T> [[nodiscard]] inline T *allocate( u64 size, bool clearZero, u16 alignment );
-	inline u8 *reallocate( void *p, u64 size );
+	template <typename T> [[nodiscard]] inline T *reallocate( void *p, u64 size );
 	inline void shrink( void *p, u64 size );
 	inline void free( void *p );
 	inline void attach( void *p, void *to );
@@ -92,9 +92,10 @@ template <typename T>
 	return reinterpret_cast<T*>( allocate_func( this, size * sizeof( T ), clearZero, alignment ) );
 }
 
-[[nodiscard]] inline u8 *Allocator::reallocate( void *p, u64 size )
+template <typename T>
+[[nodiscard]] inline T *Allocator::reallocate( void *p, u64 size )
 {
-	return reallocate_func( this, p, size );
+	return reinterpret_cast<T*>( reallocate_func( this, p, size ) );
 }
 
 inline void Allocator::shrink( void *p, u64 size )

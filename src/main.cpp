@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <math.h>
 #include <float.h>
+#include <dirent.h>
 
 // Platform Specific Includes
 #ifdef PLATFORM_WINDOWS
@@ -76,9 +77,10 @@ struct Options
 	char projectName[ MAX_FILEPATH ] = "";
 	char sourceRepo[ MAX_FILEPATH ] = "";
 	char rootFolder[ MAX_FILEPATH ] = "";
+	char finalProjectFolder[ MAX_FILEPATH ] = "";
 	i32 attempts = 6;
 	u64 permanentSize = 0;
-	u64 transientSize = KB( 2 );
+	u64 transientSize = MB( 4 );
 	u64 fastBumpSize = 0;
 
 } options;
@@ -198,6 +200,66 @@ static bool make_directory( const char *directory )
 	return true;
 }
 
+static bool delete_directory( const char *directory )
+{
+	DIR *dir = opendir( directory );
+	if ( !dir )
+		return false;
+
+	struct dirent *entry;
+
+	while ( ( entry = readdir( dir ) ) != NULL)
+	{
+		if ( string_utf8_compare( entry->d_name, "." ) || string_utf8_compare( entry->d_name, ".." ) )
+			continue;
+
+		if ( entry->d_type == DT_DIR )
+		{
+			char subdirectoryPath[ MAX_FILEPATH ];
+			string_utf8_copy( subdirectoryPath, directory );
+			string_utf8_append( subdirectoryPath, "/" );
+			string_utf8_append( subdirectoryPath, entry->d_name );
+
+			delete_directory( subdirectoryPath );
+		}
+	}
+
+	closedir( dir );
+
+	dir = opendir( directory );
+	if ( !dir )
+		return false;
+
+	while ( ( entry = readdir( dir ) ) != NULL )
+	{
+		if ( string_utf8_compare( entry->d_name, "." ) || string_utf8_compare( entry->d_name, ".." ) )
+			continue;
+
+		char filePath[ MAX_FILEPATH ];
+		string_utf8_copy( filePath, directory );
+		string_utf8_append( filePath, "/" );
+		string_utf8_append( filePath, entry->d_name );
+
+		#ifdef PLATFORM_WINDOWS
+			_unlink( filePath );
+		#else
+			unlink( filePath );
+		#endif
+	}
+
+	closedir( dir );
+
+	i32 result = 0;
+
+	#ifdef PLATFORM_WINDOWS
+		result = _rmdir( directory );
+	#else
+		result = rmdir( directory );
+	#endif
+
+	return result == 0;
+}
+
 static bool extract_all_files( zip_t *zip, const char *path, char *rootFolder, u64 maxRootFolder )
 {
 	if ( !make_directory( path ) )
@@ -273,6 +335,108 @@ static bool extract_all_files( zip_t *zip, const char *path, char *rootFolder, u
 	}
 
 	return true;
+}
+
+static void replace_entry_in_file( const char *file, const char *findString, const char *newString )
+{
+	char filePath[ MAX_FILEPATH ];
+
+	string_utf8_copy( filePath, options.finalProjectFolder );
+	string_utf8_append( filePath, file );
+
+	// Read the file into memory
+	FILE *fp = fopen( filePath, "rb" );
+	if ( !fp )
+	{
+		log_error( "Failed to open file for reading: %s", filePath );
+		return;
+	}
+
+	fseek( fp, 0, SEEK_END );
+	u64 fileSize = ftell( fp );
+	fseek( fp, 0, SEEK_SET );
+
+	u64 bufferDestSize = fileSize * 2;
+	char *bufferSrc = app.memoryArena.transient.allocate<char>( fileSize );
+	char *bufferDest = app.memoryArena.transient.allocate<char>( bufferDestSize );
+	char *bufferSrcStart = bufferSrc;
+	char *bufferDestStart = bufferDest;
+
+	fread( bufferSrc, fileSize, 1, fp );
+
+	fclose( fp );
+
+	u64 findStringSize = string_utf8_bytes( findString ) - 1;
+	u64 newStringSize = string_utf8_bytes( newString ) - 1;
+	u64 destIdx = 0;
+
+	for ( u64 i = 0; i < fileSize; ++i )
+	{
+		// Most won't match, check and move on
+		if ( bufferSrc[ i ] != findString[ 0 ] )
+		{
+			bufferDest[ destIdx++ ] = bufferSrc[ i ];
+			continue;
+		}
+
+		u64 matchStart = i;
+		u64 look = i;
+		bool matched = true;
+
+		for ( u64 k = 1; k < findStringSize; ++k )
+		{
+			if ( bufferSrc[ ++look ] != findString[ k ] )
+			{
+				matched = false;
+				break;
+			}
+		}
+
+		if ( matched )
+		{
+			i += newStringSize;
+
+			if ( i > bufferDestSize )
+			{
+				bufferDestSize *= 2;
+				bufferDestStart = app.memoryArena.transient.reallocate<char>( bufferDestStart, bufferDestSize );
+				if ( !bufferDestStart )
+				{
+					app.memoryArena.transient.free( bufferDestStart );
+					app.memoryArena.transient.free( bufferSrcStart );
+					log_error( "Buffer not big enough to handle insertion (failed to allocate more)." );
+					return;
+				}
+			}
+
+			for ( u64 newIdx = 0; newIdx < newStringSize; ++newIdx )
+			{
+				bufferDest[ destIdx++ ] = newString[ newIdx ];
+			}
+		}
+		else
+		{
+			for ( u64 size = i + findStringSize; i < size; ++i )
+			{
+				bufferDest[ destIdx++ ] = bufferSrc[ i ];
+			}
+		}
+	}
+
+	// Writing the updated data back to file
+	fp = fopen( file, "wb" );
+	if ( !fp )
+	{
+		log_error( "Failed to open file for writing: %s", file );
+		return;
+	}
+
+	fwrite( bufferDest, destIdx, 1, fp );
+
+	fclose( fp );
+
+	app.memoryArena.transient.free( bufferDestStart );
+	app.memoryArena.transient.free( bufferSrcStart );
 }
 
 // ----------------------------------------
@@ -419,6 +583,15 @@ int main( int argc, const char *argv[] )
 		return usage( RESULT_CODE_MISSING_SOURCE_REPO );
 	}
 
+	string_utf8_copy( options.finalProjectFolder, options.destFolder );
+	string_utf8_append( options.finalProjectFolder, options.projectName );
+
+	char last = options.finalProjectFolder[ string_utf8_bytes( options.finalProjectFolder ) - 1 ];
+	if ( last != '\\' && last != '/' )
+	{
+		string_utf8_append( options.finalProjectFolder, "/" );
+	}
+
 	log( "Running template-downloader" );
 	log( "Project: %s", options.projectName );
 	log( "Destination: %s", options.destFolder );
@@ -505,12 +678,13 @@ int main( int argc, const char *argv[] )
 	// Setup
 	// ----------------------------------------
 
-	char finalProjectFile[ MAX_FILEPATH ];
-	string_utf8_copy( finalProjectFile, options.destFolder );
-	string_utf8_append( finalProjectFile, options.projectName );
-	log( "Renaming %s to %s", options.rootFolder, finalProjectFile );
+	log( "Renaming %s to %s", options.rootFolder, options.finalProjectFolder );
 
-	rename( options.rootFolder, finalProjectFile );
+	delete_directory( options.finalProjectFolder );
+	rename( options.rootFolder, options.finalProjectFolder );
+
+	replace_entry_in_file( "run.bat", "__GAME_TEMPLATE_NAME__", options.projectName );
+	replace_entry_in_file( "build.bat", "__GAME_TEMPLATE_NAME__", options.projectName );
 
 	log( "Setup Complete." );
 
