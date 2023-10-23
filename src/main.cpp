@@ -101,7 +101,7 @@ static i32 usage( i32 error )
 	printf( "  template-downloader -p <name> -o <dest-folder> -s <source-github>" );
 	printf( "  EG." );
 	printf( "  template-downloader -p ld99 -s Azenris/game-template" );
-	printf( "  template-downloader -p ld99 -o C:/projects/my_new_project -s Azenris/game-template" );
+	printf( "  template-downloader -p ld99 -o C:/projects/ -s Azenris/game-template" );
 	printf( "---------------------------------------------------------------------------------------------------------" );
 	printf( "  Options:" );
 	printf( "    -p                = Project Name (required)" );
