@@ -7,7 +7,7 @@ using MemoryFlags = u32;
 enum MEMORY_FLAGS : MemoryFlags
 {
 	MEMORY_FLAGS_INITIALISED			= 1 << 0,
-	MEMORY_FLAGS_SEPERATE_ALLOCATIONS	= 1 << 1,
+	MEMORY_FLAGS_SEPARATE_ALLOCATIONS	= 1 << 1,
 };
 
 struct MemoryHeader
@@ -145,14 +145,14 @@ bool MemoryArena::init( u64 permanentSize, u64 transientSize, u64 fastBumpSize, 
 		transientMemory = (u8 *)malloc( transientReqSize );
 		fastBumpMemory = (u8 *)malloc( fastBumpReqSize );
 		memory = permanentMemory;
-		flags |= MEMORY_FLAGS_SEPERATE_ALLOCATIONS;
+		flags |= MEMORY_FLAGS_SEPARATE_ALLOCATIONS;
 	}
 	else
 	{
 		permanentMemory = memory;
 		transientMemory = permanentMemory + permanentReqSize;
 		fastBumpMemory = transientMemory + transientReqSize;
-		flags &= ~MEMORY_FLAGS_SEPERATE_ALLOCATIONS;
+		flags &= ~MEMORY_FLAGS_SEPARATE_ALLOCATIONS;
 	}
 
 	if ( !permanentMemory || !transientMemory || !fastBumpMemory )
@@ -192,7 +192,7 @@ void MemoryArena::free()
 	if ( flags & MEMORY_FLAGS_INITIALISED )
 	{
 		// Check if it was a single allocation or 2 seperate ones
-		if ( flags & MEMORY_FLAGS_SEPERATE_ALLOCATIONS )
+		if ( flags & MEMORY_FLAGS_SEPARATE_ALLOCATIONS )
 		{
 			::free( permanent.memory );
 			::free( transient.memory );
