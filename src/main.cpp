@@ -359,10 +359,8 @@ static void replace_entry_in_file( const char *file, const char *findString, con
 	u64 bufferDestSize = fileSize * 2;
 	char *bufferSrc = app.memoryArena.transient.allocate<char>( fileSize );
 	char *bufferDest = app.memoryArena.transient.allocate<char>( bufferDestSize );
-	char *bufferSrcStart = bufferSrc;
-	char *bufferDestStart = bufferDest;
 
-	fread( bufferSrc, fileSize, 1, fp );
+	fread( bufferSrc, 1, fileSize, fp );
 
 	fclose( fp );
 
@@ -380,12 +378,11 @@ static void replace_entry_in_file( const char *file, const char *findString, con
 		}
 
 		u64 matchStart = i;
-		u64 look = i;
 		bool matched = true;
 
 		for ( u64 k = 1; k < findStringSize; ++k )
 		{
-			if ( bufferSrc[ ++look ] != findString[ k ] )
+			if ( bufferSrc[ ++i ] != findString[ k ] )
 			{
 				matched = false;
 				break;
@@ -394,16 +391,14 @@ static void replace_entry_in_file( const char *file, const char *findString, con
 
 		if ( matched )
 		{
-			i += newStringSize;
-
-			if ( i > bufferDestSize )
+			if ( destIdx + newStringSize > bufferDestSize )
 			{
 				bufferDestSize *= 2;
-				bufferDestStart = app.memoryArena.transient.reallocate<char>( bufferDestStart, bufferDestSize );
-				if ( !bufferDestStart )
+				bufferDest = app.memoryArena.transient.reallocate<char>( bufferDest, bufferDestSize );
+				if ( !bufferDest )
 				{
-					app.memoryArena.transient.free( bufferDestStart );
-					app.memoryArena.transient.free( bufferSrcStart );
+					app.memoryArena.transient.free( bufferDest );
+					app.memoryArena.transient.free( bufferSrc );
 					log_error( "Buffer not big enough to handle insertion (failed to allocate more)." );
 					return;
 				}
@@ -416,27 +411,36 @@ static void replace_entry_in_file( const char *file, const char *findString, con
 		}
 		else
 		{
-			for ( u64 size = i + findStringSize; i < size; ++i )
+			for ( u64 size = matchStart; matchStart < i; ++matchStart )
 			{
-				bufferDest[ destIdx++ ] = bufferSrc[ i ];
+				bufferDest[ destIdx++ ] = bufferSrc[ matchStart ];
 			}
 		}
 	}
 
 	// Writing the updated data back to file
-	fp = fopen( file, "wb" );
+	fp = fopen( filePath, "wb" );
 	if ( !fp )
 	{
 		log_error( "Failed to open file for writing: %s", file );
 		return;
 	}
 
-	fwrite( bufferDest, destIdx, 1, fp );
+	u64 bytesWritten = fwrite( bufferDest, 1, destIdx, fp );
+
+	if ( bytesWritten != destIdx )
+	{
+		fclose( fp );
+		app.memoryArena.transient.free( bufferDest );
+		app.memoryArena.transient.free( bufferSrc );
+		log_error( "Failed to write all bytes ( %d / %d ) to file: %s", bytesWritten, destIdx, file );
+		return;
+	}
 
 	fclose( fp );
 
-	app.memoryArena.transient.free( bufferDestStart );
-	app.memoryArena.transient.free( bufferSrcStart );
+	app.memoryArena.transient.free( bufferDest );
+	app.memoryArena.transient.free( bufferSrc );
 }
 
 // ----------------------------------------
