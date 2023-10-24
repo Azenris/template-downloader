@@ -26,12 +26,12 @@ template-downloader -p <name> -o <dest-folder> -s <source-github>
 
 ### Commandline Options
 ```
--p                : Project Name (required)"
--o                : Destination Folder (default .)"
--s                : Github Source (required)"
--attempts <num>   : Number of attempts to download archive. (default 6)"
--v                : Verbose Output"
--ra               : Prints received commandline arguments"
+-p                : Project Name (required)
+-o                : Destination Folder (default .)
+-s                : Github Source (required)
+-attempts <num>   : Number of attempts to download archive. (default 6)
+-v                : Verbose Output
+-ra               : Prints received commandline arguments
 ```
 ### Examples
 ```
