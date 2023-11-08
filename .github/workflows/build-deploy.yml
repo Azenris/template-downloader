@@ -39,33 +39,33 @@ jobs:
           name: release-ubuntu
           path: build/builds/release/
 
-#  Windows:
-#    runs-on: windows-latest
-#    steps:
-#      - name: Checkout
-#        uses: actions/checkout@v3
-#      - name: Install zlib
-#        run: vcpkg install zlib:x64-windows-static-md
-#      - name: Install libzip
-#        run: vcpkg install libzip:x64-windows-static-md
-#      - name: Install curl
-#        run: vcpkg install curl:x64-windows-static-md
-#      - name: Create Build System
-#        run: >
-#          cmake -S . -B build -G"Visual Studio 17 2022"
-#          -DCMAKE_BUILD_TYPE=Release
-#          -DZLIB_INCLUDE_DIR=C:/vcpkg/packages/zlib_x64-windows-static-md/include/
-#          -DZLIB_LIBRARY_RELEASE=C:/vcpkg/packages/zlib_x64-windows-static-md/lib/zlib.lib
-#          -DZLIB_LIBRARY_DEBUG=C:/vcpkg/packages/zlib_x64-windows-static-md/debug/lib/zlibd.lib
-#          -DBZIP2_INCLUDE_DIR=C:/vcpkg/packages/bzip2_x64-windows-static-md/include/
-#          -DBZIP2_LIBRARY_RELEASE=C:/vcpkg/packages/bzip2_x64-windows-static-md/lib/bz2.lib
-#          -DBZIP2_LIBRARY_DEBUG=C:/vcpkg/packages/bzip2_x64-windows-static-md/debug/lib/bz2d.lib
-#          -DLIBZIP_DIR=C:/vcpkg/packages/libzip_x64-windows-static-md/share/libzip/
-#          -DCURL_DIR=C:/vcpkg/packages/curl_x64-windows-static-md/share/curl/
-#      - name: Build Project
-#        run: cmake --build build --config Release
-#      - name: Upload Atifacts
-#        uses: actions/upload-artifact@v3
-#        with:
-#          name: release-windows
-#          path: build/builds/release/
+  Windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Install zlib
+        run: vcpkg install zlib:x64-windows-static-md
+      - name: Install libzip
+        run: vcpkg install libzip:x64-windows-static-md
+      - name: Install curl
+        run: vcpkg install curl:x64-windows-static-md
+      - name: Create Build System
+        run: >
+          cmake -S . -B build -G"Visual Studio 17 2022"
+          -DCMAKE_BUILD_TYPE=Release
+          -DZLIB_INCLUDE_DIR=C:/vcpkg/packages/zlib_x64-windows-static-md/include/
+          -DZLIB_LIBRARY_RELEASE=C:/vcpkg/packages/zlib_x64-windows-static-md/lib/zlib.lib
+          -DZLIB_LIBRARY_DEBUG=C:/vcpkg/packages/zlib_x64-windows-static-md/debug/lib/zlibd.lib
+          -DBZIP2_INCLUDE_DIR=C:/vcpkg/packages/bzip2_x64-windows-static-md/include/
+          -DBZIP2_LIBRARY_RELEASE=C:/vcpkg/packages/bzip2_x64-windows-static-md/lib/bz2.lib
+          -DBZIP2_LIBRARY_DEBUG=C:/vcpkg/packages/bzip2_x64-windows-static-md/debug/lib/bz2d.lib
+          -DLIBZIP_DIR=C:/vcpkg/packages/libzip_x64-windows-static-md/share/libzip/
+          -DCURL_DIR=C:/vcpkg/packages/curl_x64-windows-static-md/share/curl/
+      - name: Build Project
+        run: cmake --build build --config Release
+      - name: Upload Atifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: release-windows
+          path: build/builds/release/
