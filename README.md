@@ -14,17 +14,42 @@ run.bat : Replaces __GAME_TEMPLATE_NAME__ with the specified project name given 
 build.bat : Replaces __GAME_TEMPLATE_NAME__ with the specified project name given on the commandline
 ```
 
-## How to Use
+## Build
+You can use vcpkg to install dependencies.
+```
+> goto (for example) C:/
+git clone https://github.com/microsoft/vcpkg.git
+run the bootstrap-vcpkg (a vcpkg executable will be created)
+add this to global enviroment paths
+
+> Then run:
+vcpkg install zlib:x64-windows-static-md
+vcpkg install libzip:x64-windows-static-md
+vcpkg install curl:x64-windows-static-md
+
+> Or on linux
+vcpkg install zlib:x64-linux
+vcpkg install libzip:x64-linux
+vcpkg install curl:x64-linux
+```
+Then you can build with
+```
+cmake -S . -B build
+cmake --build build --config=Release
+```
+If there are problems with paths you may have to pass them in manually. See `build.bat` for example.
+
+### How to Use
 ```
 Call through commandline with required arguments.
 ```
 
-### Call on the commandline
+## Call on the commandline
 ```
 template-downloader -p <name> -o <dest-folder> -s <source-github>
 ```
 
-### Commandline Options
+## Commandline Options
 ```
 -p <name>         : Project Name (required)
 -o <folder>       : Destination Folder (default .)
@@ -33,7 +58,7 @@ template-downloader -p <name> -o <dest-folder> -s <source-github>
 -v                : Verbose Output
 -ra               : Prints received commandline arguments
 ```
-### Examples
+## Examples
 ```
 template-downloader -p ld99 -s Azenris/game-template
 template-downloader -p ld99 -o C:/projects -s Azenris/game-template

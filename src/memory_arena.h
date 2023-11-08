@@ -36,10 +36,10 @@ struct Allocator
 	void ( *attach_func )( Allocator *allocator, void *p, void *to );
 
 	// METHODS ////////////////////////////////////
-	template <typename T> [[nodiscard]] inline T *allocate( bool clearZero );
-	template <typename T> [[nodiscard]] inline T *allocate( u32 size, bool clearZero );
+	template <typename T> [[nodiscard]] inline T *allocate( bool clearZero = false );
+	template <typename T> [[nodiscard]] inline T *allocate( u32 size, bool clearZero = false );
 	template <typename T> [[nodiscard]] inline T *allocate( u32 size, bool clearZero, u16 alignment );
-	template <typename T> [[nodiscard]] inline T *allocate( u64 size, bool clearZero );
+	template <typename T> [[nodiscard]] inline T *allocate( u64 size, bool clearZero = false );
 	template <typename T> [[nodiscard]] inline T *allocate( u64 size, bool clearZero, u16 alignment );
 	template <typename T> [[nodiscard]] inline T *reallocate( void *p, u64 size );
 	inline void shrink( void *p, u64 size );
@@ -63,13 +63,13 @@ struct MemoryArena
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 template <typename T>
-[[nodiscard]] inline T *Allocator::allocate( bool clearZero = false )
+[[nodiscard]] inline T *Allocator::allocate( bool clearZero )
 {
 	return reinterpret_cast<T*>( allocate_func( this, sizeof( T ), clearZero, alignof( T ) ) );
 }
 
 template <typename T>
-[[nodiscard]] inline T *Allocator::allocate( u32 size, bool clearZero = false )
+[[nodiscard]] inline T *Allocator::allocate( u32 size, bool clearZero )
 {
 	return reinterpret_cast<T*>( allocate_func( this, size * sizeof( T ), clearZero, alignof( T ) ) );
 }
@@ -81,7 +81,7 @@ template <typename T>
 }
 
 template <typename T>
-[[nodiscard]] inline T *Allocator::allocate( u64 size, bool clearZero = false )
+[[nodiscard]] inline T *Allocator::allocate( u64 size, bool clearZero )
 {
 	return reinterpret_cast<T*>( allocate_func( this, size * sizeof( T ), clearZero, alignof( T ) ) );
 }

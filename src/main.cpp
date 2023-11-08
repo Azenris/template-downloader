@@ -1,21 +1,24 @@
 
 // System Includes
 #include <stdint.h>
-#include <stdio.h>
+#include <stdarg.h>
+#include <string.h>
+#include <cmath>
+#include <cfloat>
+#include <cstdio>
 #include <assert.h>
-#include <math.h>
-#include <float.h>
-#include <dirent.h>
 
 // Platform Specific Includes
 #ifdef PLATFORM_WINDOWS
 #include <direct.h>
+	#include "dirent/dirent.h"
 #else
-#include <sys/stat.h>
+	#include <sys/stat.h>
+	#include <dirent.h>
 #endif
 
 // Third Party Includes
-#include "zlib/zlib.h"
+#include "zlib.h"
 #include "curl/curl.h"
 #include "zip.h"
 
@@ -93,23 +96,24 @@ struct App
 
 static i32 usage( i32 error )
 {
-	printf( "---------------------------------------------------------------------------------------------------------" );
-	printf( "  Error( %d ): %s", error, RESULT_CODE_NAME[ error ] );
-	printf( "---------------------------------------------------------------------------------------------------------" );
-	printf( "  Usage." );
-	printf( "---------------------------------------------------------------------------------------------------------" );
-	printf( "  template-downloader -p <name> -o <dest-folder> -s <source-github>" );
-	printf( "  EG." );
-	printf( "  template-downloader -p ld99 -s Azenris/game-template" );
-	printf( "  template-downloader -p ld99 -o C:/projects/ -s Azenris/game-template" );
-	printf( "---------------------------------------------------------------------------------------------------------" );
-	printf( "  Options:" );
-	printf( "    -p                = Project Name (required)" );
-	printf( "    -o                = Destination Folder (default .)" );
-	printf( "    -s                = Github Source (required)" );
-	printf( "    -v                = Verbose Output" );
-	printf( "    -attempts <num>   = Number of attempts to download archive. (default 6)" );
-	printf( "---------------------------------------------------------------------------------------------------------" );
+	printf( "---------------------------------------------------------------------------------------------------------\n" );
+	printf( "  Error( %d ): %s\n", error, RESULT_CODE_NAME[ error ] );
+	printf( "---------------------------------------------------------------------------------------------------------\n" );
+	printf( "  Usage.\n" );
+	printf( "---------------------------------------------------------------------------------------------------------\n" );
+	printf( "  template-downloader -p <name> -o <dest-folder> -s <source-github>\n" );
+	printf( "  EG.\n" );
+	printf( "  template-downloader -p ld99 -s Azenris/game-template\n" );
+	printf( "  template-downloader -p ld99 -o C:/projects/ -s Azenris/game-template\n" );
+	printf( "---------------------------------------------------------------------------------------------------------\n" );
+	printf( "  Options:\n" );
+	printf( "    -p                = Project Name (required)\n" );
+	printf( "    -o                = Destination Folder (default .)\n" );
+	printf( "    -s                = Github Source (required)\n" );
+	printf( "    -v                = Verbose Output\n" );
+	printf( "    -ra               = Print Received Arguments\n" );
+	printf( "    -attempts <num>   = Number of attempts to download archive. (default 6)\n" );
+	printf( "---------------------------------------------------------------------------------------------------------\n" );
 
 	return error;
 }
@@ -360,7 +364,12 @@ static void replace_entry_in_file( const char *file, const char *findString, con
 	char *bufferSrc = app.memoryArena.transient.allocate<char>( fileSize );
 	char *bufferDest = app.memoryArena.transient.allocate<char>( bufferDestSize );
 
-	fread( bufferSrc, 1, fileSize, fp );
+	u64 read = fread( bufferSrc, 1, fileSize, fp );
+	if ( read != fileSize )
+	{
+		log_error( "Failed to read file fully: %s ( %d / %d )", filePath, read, fileSize );
+		return;
+	}
 
 	fclose( fp );
 
@@ -411,7 +420,7 @@ static void replace_entry_in_file( const char *file, const char *findString, con
 		}
 		else
 		{
-			for ( u64 size = matchStart; matchStart < i; ++matchStart )
+			for ( ; matchStart < i; ++matchStart )
 			{
 				bufferDest[ destIdx++ ] = bufferSrc[ matchStart ];
 			}
@@ -572,7 +581,7 @@ int main( int argc, const char *argv[] )
 		}
 		else
 		{
-			printf( "Unknown argument command: %s", argv[ i ] );
+			printf( "Unknown argument command: %s\n", argv[ i ] );
 			return usage( RESULT_CODE_UNKNOWN_ARGUMENT_COMMAND );
 		}
 	}
