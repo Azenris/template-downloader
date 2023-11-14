@@ -25,7 +25,7 @@ target_compile_definitions( td PRIVATE "$<$<CONFIG:Release>:NDEBUG>" )
 
 target_compile_features( td PRIVATE cxx_std_20 )
 
-option( ZLIB_USE_STATIC_LIBS ON )
+option( ZLIB_USE_STATIC_LIBS "" ON )
 find_package( ZLIB REQUIRED )
 target_link_libraries( td PRIVATE ZLIB::ZLIB )
 
