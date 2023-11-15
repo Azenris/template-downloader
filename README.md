@@ -22,12 +22,12 @@ git clone https://github.com/microsoft/vcpkg.git
 run the bootstrap-vcpkg (a vcpkg executable will be created)
 add this to global enviroment paths
 
-> Then run:
+> Example for Windows
 vcpkg install zlib:x64-windows-static-md
 vcpkg install libzip:x64-windows-static-md
 vcpkg install curl:x64-windows-static-md
 
-> Or on linux
+> Example for Linux
 vcpkg install zlib:x64-linux
 vcpkg install libzip:x64-linux
 vcpkg install curl:x64-linux

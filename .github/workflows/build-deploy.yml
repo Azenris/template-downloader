@@ -33,7 +33,7 @@ jobs:
           -DCMAKE_TOOLCHAIN_FILE=/usr/local/share/vcpkg/scripts/buildsystems/vcpkg.cmake
       - name: Build Project
         run: cmake --build build --config Release
-      - name: Upload Atifacts
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v3
         with:
           name: release-ubuntu
@@ -64,7 +64,7 @@ jobs:
           -DCURL_DIR=C:/vcpkg/packages/curl_x64-windows-static-md/share/curl/
       - name: Build Project
         run: cmake --build build --config Release
-      - name: Upload Atifacts
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v3
         with:
           name: release-windows
