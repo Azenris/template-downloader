@@ -1,6 +1,7 @@
 # Status
-![example workflow](https://github.com/Azenris/template-downloader/actions/workflows/build-windows.yml/badge.svg) 
-![example workflow](https://github.com/Azenris/template-downloader/actions/workflows/build-ubuntu.yml/badge.svg)
+![Build Windows](https://github.com/Azenris/template-downloader/actions/workflows/build-windows.yml/badge.svg)
+
+![Build Ubuntu](https://github.com/Azenris/template-downloader/actions/workflows/build-ubuntu.yml/badge.svg)
 
 # template-downloader
 ```
