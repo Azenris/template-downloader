@@ -3,9 +3,9 @@
 # Build Workflow
 #
 
-name: Build
+name: Build-Windows
 
-run-name: ${{ github.actor }} started a build.
+run-name: ${{ github.actor }} started a windows build.
 
 on:
   push:
@@ -16,29 +16,6 @@ on:
       - main
 
 jobs:
-  Ubuntu:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Install zlib
-        run: vcpkg install zlib:x64-linux
-      - name: Install libzip
-        run: vcpkg install libzip:x64-linux
-      - name: Install curl
-        run: vcpkg install curl:x64-linux
-      - name: Create Build System
-        run: >
-          cmake -S . -B build
-          -DCMAKE_BUILD_TYPE=Release
-          -DCMAKE_TOOLCHAIN_FILE=/usr/local/share/vcpkg/scripts/buildsystems/vcpkg.cmake
-      - name: Build Project
-        run: cmake --build build --config Release
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: release-ubuntu
-          path: build/builds/release/
-
   Windows:
     runs-on: windows-latest
     steps:
