@@ -7,6 +7,7 @@ SET libzip=C:/vcpkg/packages/libzip_x64-windows-static-md
 SET curl=C:/vcpkg/packages/curl_x64-windows-static-md
 
 cmake -S . -B build ^
+	-DBUILD_CRT_STATIC=OFF ^
 	-DZLIB_INCLUDE_DIR=%zlib%/include/ ^
 	-DZLIB_LIBRARY_RELEASE=%zlib%/lib/zlib.lib ^
 	-DZLIB_LIBRARY_DEBUG=%zlib%/debug/lib/zlibd.lib ^
